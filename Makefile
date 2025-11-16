@@ -1,0 +1,2 @@
+BINARY_NAME=gix
+VERSION=0.0.1
