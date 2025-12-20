@@ -1,0 +1,24 @@
+version: 1
+project:
+  type: "go"
+
+rules:
+  readme: error
+  license: warning
+  gitignore: warning
+  changelog: info
+  tests_folder: warning
+  docs_folder: info
+  scripts_folder: info
+  contributing: warning
+  api_docs: warning
+  security: warning
+  code_of_conduct: warning
+  pull_request_template: warning
+  issue_templates: warning
+  pre_commit: warning
+  editorconfig: warning
+  dockerfile: warning
+  dockerignore: warning
+  docker_compose: warning
+

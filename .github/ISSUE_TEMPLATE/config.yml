@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/m-mdy-m/gix/discussions
+    about: Ask questions and discuss ideas
+  - name: 📖 Documentation
+    url: https://{{docs_url}}
+    about: Check out our documentation
+  - name: 💡 Stack Overflow
+    url: https://stackoverflow.com/questions/tagged/gix
+    about: Ask questions on Stack Overflow

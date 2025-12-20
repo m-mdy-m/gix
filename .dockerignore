@@ -1,0 +1,26 @@
+# Build
+build/
+*.exe
+*.test
+*.out
+
+# Dependencies
+vendor/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+coverage.txt
+coverage.html
+**/*_test.go
+
+# Misc
+*.md
+!README.md
+.DS_Store
