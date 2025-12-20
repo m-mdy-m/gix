@@ -33,12 +33,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for details. _n
 
 Gix is released under the MIT License. See [LICENSE](LICENSE) for details.
 
-## Credits
-
-Gix is built with:
-
-- [go-git](https://github.com/go-git/go-git) 
-
 ## Support
 
 Need help? Here's how to get support:
