@@ -1,134 +1,113 @@
-# Gix
+# gix
 
-A modern Git wrapper that makes version control simple, safe, and intuitive.
+A personal wrapper around Git for one specific branching flow. Not a
+general-purpose Git replacement, not a configurable workflow engine —
+it automates the flow below, so branch creation, merging, and cleanup
+are one command instead of five.
 
-## About
+```
+main
+ └── develop
+      ├── feature/*   branched from develop, merged back into develop
+      └── release/*   branched from develop, merged into main + develop, tagged
+```
 
-Gix is a comprehensive Git wrapper designed to simplify everyday Git operations. It provides intelligent defaults, safety checks, and automation while maintaining full compatibility with Git. Think of it as Git with guardrails and smart assistance.
+## Why
 
-The project started from a simple observation: Git is powerful but complex. Developers spend too much time wrestling with Git commands instead of focusing on their code. Gix aims to bridge this gap by providing a more user-friendly interface without sacrificing Git's power and flexibility.
+Every feature and release in this flow needs the same sequence of Git
+commands: check out develop, branch, work, come back, merge with
+`--no-ff`, delete the branch, tag if it's a release. gix turns that
+sequence into `gix feature start`, `gix feature finish`,
+`gix release start`, `gix release finish`.
 
-## Why Gix?
+## Install
 
-Git is an incredible tool, but its learning curve is steep and its interface can be unforgiving. Over the years, we've seen developers struggle with common tasks like commit message formatting, branch management, and merge conflicts. Gix addresses these pain points by:
-
-Providing smart commit workflows with automatic analysis and conventional commit formatting. The tool examines your changes and suggests appropriate commit types and messages, making it easy to maintain a clean commit history.
-
-Offering safe operations with automatic backups before dangerous commands. When you're about to rebase, force push, or perform any operation that could lose work, Gix automatically creates a safety backup. This gives you confidence to experiment and learn without fear.
-
-Simplifying branch management with clear visualizations and intelligent cleanup. Gix helps you understand branch relationships, identifies stale branches, and makes it easy to keep your repository organized.
-
-Standardizing team workflows through built-in linting and hooks management. Set up commit linting, pre-commit checks, and other quality gates with simple commands that work consistently across your team.
-
-## Features
-
-Gix provides intelligent commit management that analyzes your changes and guides you through creating well-formatted commits. It supports conventional commits out of the box and can even suggest commit messages based on your code changes.
-
-The branch management system gives you clear visibility into your repository structure. You can see which branches are active, which are stale, and how they relate to each other. Operations like creating, switching, and cleaning up branches become straightforward.
-
-Safety is built into every operation. Gix creates automatic backups before potentially destructive operations, provides clear warnings, and offers easy undo functionality. You can experiment with Git operations knowing you can always recover.
-
-Release management and changelog generation are automated based on your commit history. If you follow conventional commits, Gix can automatically determine version numbers and generate detailed changelogs.
-
-GPG signing and security features are simplified with guided setup wizards. Gix makes it easy to sign commits and verify signatures, enhancing your repository's security.
-
-The tool includes comprehensive hooks management with pre-configured templates for common use cases. Setting up lint-staged, commitlint, and other quality checks takes just one command.
-
-## Installation
-
-### From Source
-
-Clone the repository and build:
 ```bash
 git clone https://github.com/m-mdy-m/gix.git
 cd gix
 make install
 ```
 
-This will build the binary and install it to your Go bin directory.
+This builds `gix` and installs it to your `$GOPATH/bin` (or `go install`'s
+default). Make sure that's on your `PATH`.
 
-### Manual Installation
+## Usage
 
-Download the latest release from the releases page, extract it, and move the binary to a location in your PATH:
+Initialize gix in a repository (creates `.gix/config`, commits it, and
+creates the `develop` branch if it doesn't exist yet):
+
 ```bash
-chmod +x gix
-sudo mv gix /usr/local/bin/
+gix flow init
 ```
 
-## Quick Start
+Start a feature:
 
-Initialize a new repository with Gix standards:
 ```bash
-gix init
+gix feature start api-auth
+# → creates and switches to feature/api-auth, from develop
 ```
 
-This sets up Git, creates configuration files, installs hooks, and configures commit linting.
+Work, commit normally with plain `git commit`, then finish:
 
-Make some changes and commit with intelligent assistance:
 ```bash
-gix commit
+gix feature finish api-auth
+# → merges feature/api-auth into develop (--no-ff)
+# → deletes the feature branch
 ```
 
-Gix will analyze your changes, suggest a commit type and message, run pre-commit checks, and guide you through the commit process.
+Releases work the same way, but merge into both `main` and `develop`,
+and can be tagged:
 
-Create and work on a feature branch:
 ```bash
-gix branch feature/user-authentication
-# Make your changes
-gix commit
-gix pr-ready
+gix release start v0.1.0
+# ...commit release prep...
+gix release finish v0.1.0 --tag v0.1.0
+# → merges release/v0.1.0 into main, then develop
+# → tags v0.1.0 on main
+# → deletes the release branch
 ```
 
-The pr-ready command checks for conflicts, validates commits, runs tests, and confirms your branch is ready for a pull request.
+Check where you are:
+
+```bash
+gix status   # current branch, base, ahead/behind, clean/dirty
+gix list     # active feature/ and release/ branches
+```
 
 ## Configuration
 
-Gix works with sensible defaults but can be customized. View your current configuration:
-```bash
-gix config
+`gix flow init` writes `.gix/config` at the repo root:
+
+```
+version = 1
+branch.main = main
+branch.develop = develop
+prefix.feature = feature/
+prefix.release = release/
+remote = origin
 ```
 
-Common settings include commit signing preferences, default branch names, hook configurations, and linting rules. All settings can be modified with the config command.
+It's a plain committed file, not a personal dotfile — everyone working
+in the repo shares the same branch model. Edit it by hand if you need
+different branch names or prefixes.
 
-## Documentation
+## What this is not (yet)
 
-For detailed documentation on all commands and features, visit the documentation site or use the built-in help:
-```bash
-gix help
-gix help <command>
-```
+> This is an early MVP. It intentionally does not do commit message
+generation, hooks, safety backups, or anything beyond the branch flow
+itself — those were planned in earlier drafts of this project but
+weren't implemented, so they've been dropped from scope rather than
+left as empty stubs. If they come back, they'll be built the same way
+the flow commands were: implemented before they're documented.
 
 ## Development
 
-Gix is written in Go and uses a Makefile for common development tasks. To get started with development:
 ```bash
-git clone https://github.com/m-mdy-m/gix.git
-cd gix
-make dev
+make build   # build ./build/gix
+make test    # go test ./...
+make clean   # remove build/
 ```
-
-Run tests with:
-```bash
-make test
-```
-
-Build for all platforms:
-```bash
-make build-all
-```
-
-## Contributing
-
-We welcome contributions of all kinds, from bug reports to feature implementations. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on our development process and how to submit pull requests.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
-
-## Contact
-
-For questions, suggestions, or issues, please open an issue on GitHub or email us at bitsgenix@gmail.com.
-
-## Acknowledgments
-
-Gix builds on the shoulders of giants. We're grateful to the Git project and the many tools in the Git ecosystem that have inspired this work. Special thanks to the contributors of conventional commits, commitlint, husky, and other projects that have shaped modern Git workflows.
+MIT. See [LICENSE](./LICENSE).
