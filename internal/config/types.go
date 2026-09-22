@@ -1,82 +1,159 @@
 package config
 
-// [GLOBAL]
-type GlobalConfig struct {
-	Users    UserConfig        `yaml:"user"`
-	Defaults DefaultConfig     `yaml:"defaults"`
-	Aliases  map[string]string `yaml:"aliases,omitempty"`
+type Strategy string
+
+const (
+	StrategyMerge Strategy = "merge"
+
+	StrategyRebase Strategy = "rebase"
+
+	StrategySquash Strategy = "squash"
+)
+
+func (s Strategy) Valid() bool {
+	switch s {
+	case StrategyMerge, StrategyRebase, StrategySquash:
+		return true
+	default:
+		return false
+	}
 }
 
-// User Config
-type UserConfig struct {
-	Name   string `yaml:"name"`
-	Email  string `yaml:"email"`
-	GPGKey string `yaml:"signing_key,omitempty"`
-}
+type Role string
 
-// [START] Default Config Section
-type DefaultConfig struct {
-	Branch    BranchConfig    `yaml:"branch,omitempty"`
-	Remote    string          `yaml:"remote,omitempty"`
-	Commit    CommitConfig    `yaml:"commit,omitempty"`
-	Workflows WorkflowsConfig `yaml:"workflows,omitempty"`
-	Hooks     HooksConfig     `yaml:"hooks,omitempty"`
-}
-type BranchConfig struct {
-	Main    string `yaml:"main,omitempty"`
-	Develop string `yaml:"develop,omitempty"`
-}
-type CommitConfig struct {
-	Sign         bool `yaml:"sign,omitempty"`         // GPG signature
-	Lint         bool `yaml:"lint,omitempty"`         // run commit linters
-	Conventional bool `yaml:"conventional,omitempty"` // use conventional commits
-}
-type WorkflowsConfig struct {
-	FeaturePrefix string `yaml:"feature_prefix,omitempty"`
-	HotfixPrefix  string `yaml:"hotfix_prefix,omitempty"`
-	ReleasePrefix string `yaml:"release_prefix,omitempty"`
-}
+const (
+	RoleBase  Role = "base"
+	RoleTopic Role = "topic"
+)
 
-type HooksConfig struct {
-	PreCommit  bool `yaml:"pre_commit,omitempty"`
-	PostCommit bool `yaml:"post_commit,omitempty"`
-	CommitMsg  bool `yaml:"commit_msg,omitempty"`
-	PrePush    bool `yaml:"pre_push,omitempty"`
-}
-
-// [END] Default Config
-// [END] [GLOBAL]
-
-// [LOCAL]
-
-type LocalConfig struct {
-	Project   LocalProject     `yaml:"project,omitempty"`
-	Branch    BranchConfig     `yaml:"branch,omitempty"`
-	Commit    CommitConfig     `yaml:"commit,omitempty"`
-	Workflows WorkflowsConfig  `yaml:"workflows,omitempty"`
-	Hooks     LocalHooksConfig `yaml:"hooks,omitempty"`
-}
-
-type LocalProject struct {
+type BranchSpec struct {
 	Name string `yaml:"name,omitempty"`
+
+	Role Role `yaml:"type"`
+
+	Prefix string `yaml:"prefix,omitempty"`
+
+	Parent string `yaml:"parent,omitempty"`
+
+	MergeInto []string `yaml:"merge_into,omitempty"`
+
+	UpstreamStrategy Strategy `yaml:"upstream_strategy,omitempty"`
+
+	DownstreamStrategy Strategy `yaml:"downstream_strategy,omitempty"`
+
+	Tag bool `yaml:"tag,omitempty"`
+
+	AutoSync bool `yaml:"autosync,omitempty"`
+
+	DeleteOnFinish bool `yaml:"delete_on_finish"`
 }
 
-/*
-Each hook section (pre, post, commit_msg) accepts a list of
-commands that are executed sequentially in the order they
-are defined.
-Example YAML configuration:
-pre:
-  - "make test"
-  - "make lint"
-post:
-  - "echo Commit finished"
-commit_msg:
-  - "commitlint"
-*/
-type LocalHooksConfig struct {
-	PreCommit  []string `yaml:"pre_commit,omitempty"`
-	PostCommit []string `yaml:"post_commit,omitempty"`
-	CommitMsg  []string `yaml:"commit_msg,omitempty"`
-	PrePush    []string `yaml:"pre_push,omitempty"`
+type Config struct {
+	Gix    GixMeta               `yaml:"gix"`
+	Remote string                `yaml:"remote,omitempty"`
+	Branch map[string]BranchSpec `yaml:"branch"`
+}
+
+type GixMeta struct {
+	Version string `yaml:"version"`
+}
+
+func (c *Config) MainName() string { return c.baseName("main", "main") }
+
+func (c *Config) DevelopName() string { return c.baseName("develop", "develop") }
+
+func (c *Config) baseName(key, fallback string) string {
+	if c == nil || c.Branch == nil {
+		return fallback
+	}
+	if spec, ok := c.Branch[key]; ok && spec.Name != "" {
+		return spec.Name
+	}
+	return fallback
+}
+
+func (c *Config) Kinds() []string {
+	if c == nil {
+		return nil
+	}
+	wellKnown := []string{"feature", "bugfix", "hotfix", "release"}
+	seen := make(map[string]bool, len(wellKnown))
+	var out []string
+	for _, k := range wellKnown {
+		if spec, ok := c.Branch[k]; ok && spec.Role == RoleTopic {
+			out = append(out, k)
+		}
+		seen[k] = true
+	}
+
+	var extra []string
+	for k, spec := range c.Branch {
+		if spec.Role == RoleTopic && !seen[k] {
+			extra = append(extra, k)
+		}
+	}
+	sortStrings(extra)
+	return append(out, extra...)
+}
+
+func sortStrings(s []string) {
+	for i := 1; i < len(s); i++ {
+		for j := i; j > 0 && s[j-1] > s[j]; j-- {
+			s[j-1], s[j] = s[j], s[j-1]
+		}
+	}
+}
+
+func (c *Config) Spec(kind string) (BranchSpec, bool) {
+	if c == nil || c.Branch == nil {
+		return BranchSpec{}, false
+	}
+	spec, ok := c.Branch[kind]
+	return spec, ok
+}
+
+func (c *Config) BaseKeys() []string {
+	if c == nil {
+		return nil
+	}
+	seen := make(map[string]bool, len(c.Branch))
+	var out []string
+	for _, k := range []string{"main", "develop"} {
+		if spec, ok := c.Branch[k]; ok && spec.Role == RoleBase {
+			out = append(out, k)
+		}
+		seen[k] = true
+	}
+	var extra []string
+	for k, spec := range c.Branch {
+		if spec.Role == RoleBase && !seen[k] {
+			extra = append(extra, k)
+		}
+	}
+	sortStrings(extra)
+	return append(out, extra...)
+}
+
+func (spec BranchSpec) MergeTargets() []string {
+	if len(spec.MergeInto) > 0 {
+		return spec.MergeInto
+	}
+	if spec.Parent != "" {
+		return []string{spec.Parent}
+	}
+	return nil
+}
+
+func (spec BranchSpec) Upstream() Strategy {
+	if spec.UpstreamStrategy.Valid() {
+		return spec.UpstreamStrategy
+	}
+	return StrategyMerge
+}
+
+func (spec BranchSpec) Downstream() Strategy {
+	if spec.DownstreamStrategy.Valid() {
+		return spec.DownstreamStrategy
+	}
+	return StrategyMerge
 }
