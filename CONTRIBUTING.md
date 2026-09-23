@@ -1,54 +1,77 @@
 # Contributing
 
-Thanks for helping improve gix.
+Thanks for considering a contribution.
+
+**Before you start:** gix automates *one* branching flow (main →
+develop → feature/bugfix/hotfix/release). PRs that add a second
+workflow, a plugin system, or general Git features are out of scope —
+check [the intro](docs/Introduction.md) first. Bug fixes, docs, tests
+and flow-related flags are always welcome.
 
 ## Setup
-
-Requirements: Go 1.25+, Git, and Make.
 
 ```bash
 git clone https://github.com/m-mdy-m/gix.git
 cd gix
-make setup
+make build        # → build/gix
+make hooks        # enable git hooks, once per clone
 ```
+
+Needs Go 1.25+ and `git` on PATH.
 
 ## Workflow
 
-Use gix for the repository flow:
-
 ```bash
 gix feature start my-change
-# work and commit normally
+# ...work, commit normally...
 gix feature finish my-change
 ```
 
-Run checks before opening a PR:
-
-```bash
-make quality
-make lint
-```
+The repo uses its own flow. Branch from `develop`, finish back into it.
 
 ## Commits
 
-Use Conventional Commits, for example:
+[Conventional Commits](https://www.conventionalcommits.org/), enforced
+by the `commit-msg` hook:
 
-```text
-feat(flow): add hotfix support
-fix(config): validate branch targets
+```
+feat(config): support custom branch kinds
+fix(flow): don't delete branch when merge fails
+docs: shorten getting-started
 ```
 
-## Pull requests
+Types: `feat` `fix` `docs` `style` `refactor` `perf` `test` `build`
+`ci` `chore` `revert`.
 
-Keep a PR focused on one logical change. Include what changed, why, and any user-visible behavior.
+## Before opening a PR
 
-The CI must pass before merge.
+```bash
+make check    # fmt-check + vet + test — same as CI
+```
 
-## Code layout
+Also:
 
-- `internal/git` — Git process boundary.
-- `internal/flow` — branching and merge logic.
-- `internal/config` — `.gix/config` model and validation.
-- `internal/commands` — CLI commands.
-- `internal/ui` — terminal output.
-- `cmd/gix` — application entry point.
+- one logical change per PR (small beats big)
+- update docs if behavior changed (`docs/`)
+- add a `CHANGELOG.md` entry under `[Unreleased]` for user-facing changes
+
+## Where things live
+
+| Path | Contents |
+|------|----------|
+| `internal/flow` | start/finish logic — the heart of gix |
+| `internal/git` | exec + parse wrapper around the `git` CLI |
+| `internal/config` | `.gix/config` read/write/validate |
+| `internal/commands` | cobra definitions (thin) |
+| `internal/ui` | output helpers |
+| `docs/` | user-facing docs |
+| `quality/` | lint/format tool configs |
+| `.husky/` | git hooks |
+
+Details: [docs/architecture](docs/architecture/README.md).
+
+## Reporting bugs
+
+Use [Issues](https://github.com/m-mdy-m/gix/issues) with the bug report
+template. Security issues → [SECURITY.md](SECURITY.md), not a public
+issue.
