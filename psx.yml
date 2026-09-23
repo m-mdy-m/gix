@@ -1,24 +1,83 @@
 version: 1
+
 project:
-  type: "go"
+  type: ""
 
 rules:
   readme: error
   license: warning
-  gitignore: warning
   changelog: info
-  tests_folder: warning
+  tests_folder: error
   docs_folder: info
-  scripts_folder: info
-  contributing: warning
-  api_docs: warning
-  security: warning
-  code_of_conduct: warning
-  pull_request_template: warning
-  issue_templates: warning
-  pre_commit: warning
-  editorconfig: warning
-  dockerfile: warning
-  dockerignore: warning
-  docker_compose: warning
 
+  # Documentation
+  contributing: info
+  api_docs: warning
+  security: info
+  code_of_conduct: info
+  pull_request_template: info
+  issue_templates: info
+
+  # Quality
+  pre_commit: info
+  editorconfig: info
+  code_owners: info
+
+  # DevOps
+  dockerfile: info
+  dockerignore: info
+
+custom:
+
+  folders:
+    # Documentation
+    - path: "docs"
+      structure:
+        architecture: {}
+        api: {}
+        development: {}
+
+    # Tests
+    - path: "tests"
+      structure:
+        integration: {}
+        contract: {}
+        e2e: {}
+        load: {}
+
+    # Development / automation scripts
+    - path: "scripts"
+
+    # Git hooks / code quality
+    - path: ".husky"
+      structure: {}
+
+    - path: "quality"
+      structure:
+        prettier: {}
+        commitlint: {}
+
+  files:
+
+    # Git hooks
+    - path: "/.husky/README.md"
+    - path: "/.husky/pre-commit"
+    - path: "/.husky/commit-msg"
+    - path: "/.husky/pre-push"
+
+    # Quality
+    - path: "/quality/README.md"
+    - path: "/quality/prettier/README.md"
+    - path: "/quality/commitlint/README.md"
+
+    # Root development tooling
+    - path: "/Makefile"
+
+    # docs
+    - path: "/docs/README.md"
+    - path: "/docs/architecture/README.md"
+    - path: "/docs/api/README.md"
+    - path: "/docs/development/README.md"
+
+    # scripts
+    - path: "/scripts/README.md"
