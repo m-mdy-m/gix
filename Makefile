@@ -1,72 +1,99 @@
-SHELL := /bin/sh
+ifeq ($(OS),Windows_NT)
+  EXE       := .exe
+  VERSION   ?= $(shell git describe --tags --always --dirty 2>NUL || echo dev)
+  MKDIR_P    = if not exist "$(1)" mkdir "$(1)"
+  RM_RF      = if exist "$(1)" rmdir /s /q "$(1)"
+  FMT_CHECK  = powershell -NoProfile -Command "$$out = gofmt -l cmd internal; if ($$out) { Write-Host 'not gofmt-formatted:'; Write-Host $$out; exit 1 }"
+  GOBIN_BIN  = $(shell go env GOPATH)\bin
+  SET_EXEC   = rem exec bit not needed on windows - git runs hooks via sh
+  GOLANGCI  := $(firstword $(shell golangci-lint version 2>NUL))
+  ECHO_HELP  = @echo
+else
+  EXE       :=
+  VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+  MKDIR_P    = mkdir -p $(1)
+  RM_RF      = rm -rf $(1)
+  FMT_CHECK  = out=$$(gofmt -l cmd internal); if [ -n "$$out" ]; then echo "not gofmt-formatted:"; echo "$$out"; exit 1; fi
+  GOBIN_BIN  = $(shell go env GOPATH)/bin
+  SET_EXEC   = chmod +x .husky/pre-commit .husky/commit-msg .husky/pre-push
+  GOLANGCI  := $(firstword $(shell golangci-lint version 2>/dev/null))
+  ECHO_HELP  = @echo
+endif
 
-GO ?= go
-GOLANGCI_LINT ?= golangci-lint
-BINARY := gix
-CMD := ./cmd/gix
+BINARY    := gix$(EXE)
+CMD_DIR   := ./cmd/gix
 BUILD_DIR := build
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.Version=$(VERSION)
-IMAGE ?= bitsgenix/gix
+IMG       ?= bitsgenix/gix
+TAG       ?= $(VERSION)
 
-.PHONY: all setup fmt fmt-check build test vet lint quality ci run install uninstall docker docker-build release clean
+# Version var lives in internal/commands, not package main
+LDFLAGS := -s -w -X github.com/m-mdy-m/gix/internal/commands.Version=$(VERSION)
 
-all: quality build
+.PHONY: help setup hooks build install uninstall test cover fmt fmt-check \
+        vet quality lint check ci docker clean
 
-setup: hooks
-	@echo "gix development environment ready"
+help: # Show this help
+	$(ECHO_HELP) gix make targets:
+	$(ECHO_HELP)   setup      enable git hooks in .husky - once per clone
+	$(ECHO_HELP)   build      build ./build/$(BINARY)
+	$(ECHO_HELP)   install    go install to GOPATH/bin
+	$(ECHO_HELP)   uninstall  remove the installed binary
+	$(ECHO_HELP)   test       go test ./...
+	$(ECHO_HELP)   cover      go test -cover ./...
+	$(ECHO_HELP)   fmt        gofmt -w cmd internal
+	$(ECHO_HELP)   fmt-check  fail if Go code is not formatted
+	$(ECHO_HELP)   vet        go vet ./...
+	$(ECHO_HELP)   quality    fmt-check + vet + test
+	$(ECHO_HELP)   lint       golangci-lint - skipped if not installed
+	$(ECHO_HELP)   check      quality + lint - what CI runs
+	$(ECHO_HELP)   docker     build $(IMG):$(TAG)
+	$(ECHO_HELP)   clean      remove build/
 
-hooks:
-	@git config core.hooksPath .husky
-	@chmod +x .husky/pre-commit .husky/commit-msg .husky/pre-push
-	@echo "Git hooks enabled"
+setup hooks: # Enable git hooks, once per clone
+	git config core.hooksPath .husky
+	@$(SET_EXEC)
+	@echo hooks enabled - .husky
 
-fmt:
-	@$(GO) fmt ./...
+build: # Build ./build/$(BINARY)
+	@$(call MKDIR_P,$(BUILD_DIR))
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) $(CMD_DIR)
+	@echo built $(BUILD_DIR)/$(BINARY) - $(VERSION)
 
-fmt-check:
-	@test -z "$$(gofmt -l $$(find . -name '*.go' -type f -not -path './vendor/*'))" || \
-		{ echo "Go files need formatting. Run: make fmt"; exit 1; }
+install: # go install to GOPATH/bin
+	go install -ldflags "$(LDFLAGS)" $(CMD_DIR)
 
-build:
-	@mkdir -p $(BUILD_DIR)
-	@CGO_ENABLED=0 $(GO) build -trimpath -buildvcs=false -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) $(CMD)
+uninstall: # Remove installed binary
+	@$(call RM_RF,$(GOBIN_BIN)/$(BINARY))
 
-run:
-	@$(GO) run $(CMD)
+test: # Run tests
+	go test ./...
 
-test:
-	@$(GO) test ./...
+cover: # Run tests with coverage
+	go test -cover ./...
 
-vet:
-	@$(GO) vet ./...
+fmt: # Format Go code
+	gofmt -w cmd internal
 
-lint:
-	@$(GOLANGCI_LINT) run ./...
+fmt-check: # Fail if Go code is not formatted
+	@$(FMT_CHECK)
 
-quality: fmt-check test vet
+vet: # Static analysis
+	go vet ./...
 
-ci: quality lint
+quality: fmt-check vet test # fmt-check + vet + test
 
-docker-build:
-	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
+lint: # golangci-lint, skipped when not installed
+ifeq ($(GOLANGCI),)
+	@echo golangci-lint not installed - skipping - https://golangci-lint.run/usage/install/
+else
+	golangci-lint run ./...
+endif
 
-docker: docker-build
+check ci: quality lint # quality + lint - what CI runs
+	@echo check passed
 
-install: build
-	@$(GO) install -trimpath -ldflags "$(LDFLAGS)" $(CMD)
-	@echo "installed $(BINARY)"
+docker: # Build Docker image
+	docker build --build-arg VERSION=$(VERSION) -t $(IMG):$(TAG) .
 
-uninstall:
-	@rm -f "$${GOBIN:-$$(go env GOPATH)/bin}/$(BINARY)"
-
-release:
-	@test -n "$(VERSION)" || { echo "VERSION is required"; exit 1; }
-	@test "$$(git branch --show-current)" = "main" || { echo "release must run from main"; exit 1; }
-	@test -z "$$(git status --porcelain)" || { echo "working tree must be clean"; exit 1; }
-	@printf '%s\n' "$(VERSION)" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must look like 1.2.3 or v1.2.3"; exit 1; }
-	@TAG="$(VERSION)"; case "$$TAG" in v*) ;; *) TAG="v$$TAG";; esac; \
-		git tag -a "$$TAG" -m "Release $$TAG"; git push origin "$$TAG"
-
-clean:
-	@rm -rf $(BUILD_DIR)
+clean: # Remove build output
+	@$(call RM_RF,$(BUILD_DIR))
