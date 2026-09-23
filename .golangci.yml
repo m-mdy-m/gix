@@ -1,0 +1,14 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: standard
+  exclusions:
+    generated: strict
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

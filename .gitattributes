@@ -1,0 +1,21 @@
+# Normalize line endings: LF everywhere in the repo, so gofmt / prettier
+# and CI see the same bytes on every platform.
+* text=auto eol=lf
+
+*.go    text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.js    text eol=lf
+*.sh    text eol=lf
+Makefile text eol=lf
+
+*.ps1   text eol=crlf
+
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.zip   binary
+*.gz    binary
+*.rar   binary

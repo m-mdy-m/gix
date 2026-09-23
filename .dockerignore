@@ -19,8 +19,19 @@ vendor/
 coverage.txt
 coverage.html
 **/*_test.go
+test/
+tests/
+
+# CI / development-only files
+.github/
+.husky/
+quality/
+docs/
+infra/
+.pre-commit-config.yaml
+.psx-project.yml
+psx.yml
 
 # Misc
 *.md
-!README.md
 .DS_Store
