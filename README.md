@@ -105,6 +105,11 @@ See [docs/](docs/README.md) for commands, configuration, installation, architect
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Acknowledgements
+
+Project standards (readme, changelog, docs) are enforced with
+[psx](https://github.com/m-mdy-m/psx) — see [psx.yml](psx.yml).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
