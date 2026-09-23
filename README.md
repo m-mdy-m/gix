@@ -1,26 +1,42 @@
 # gix
 
-A personal wrapper around Git for one specific branching flow. Not a
-general-purpose Git replacement, not a configurable workflow engine —
-it automates the flow below, so branch creation, merging, and cleanup
-are one command instead of five.
+A small command-line wrapper around Git for one specific branching flow. gix is not a Git replacement or a general workflow engine; it turns a repeatable branch/merge sequence into a few commands.
 
-```
+```text
 main
  └── develop
-      ├── feature/*   branched from develop, merged back into develop
-      └── release/*   branched from develop, merged into main + develop, tagged
+      ├── feature/*
+      ├── bugfix/*
+      ├── hotfix/*
+      └── release/*
 ```
 
-## Why
+## Features
 
-Every feature and release in this flow needs the same sequence of Git
-commands: check out develop, branch, work, come back, merge with
-`--no-ff`, delete the branch, tag if it's a release. gix turns that
-sequence into `gix feature start`, `gix feature finish`,
-`gix release start`, `gix release finish`.
+- **Flow-aware** — branch parents and merge targets come from `.gix/config`.
+- **Simple** — `start` and `finish` cover the common flow.
+- **Safe by default** — refuses dirty working trees and unfinished Git operations.
+- **Taggable releases** — release/hotfix branches can create annotated tags.
+- **Cross-platform** — Linux, macOS, and Windows binaries are published.
 
-## Install
+## Installation
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh | sh
+```
+
+### Windows PowerShell
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1" -OutFile install.ps1
+.\install.ps1
+```
+
+### From source
+
+Requirements: Go 1.25+ and Git.
 
 ```bash
 git clone https://github.com/m-mdy-m/gix.git
@@ -28,13 +44,18 @@ cd gix
 make install
 ```
 
-This builds `gix` and installs it to your `$GOPATH/bin` (or `go install`'s
-default). Make sure that's on your `PATH`.
+### Docker
 
-## Usage
+```bash
+docker pull bitsgenix/gix:latest
+docker run --rm -v "$PWD":/workspace -w /workspace bitsgenix/gix:latest status
+```
 
-Initialize gix in a repository (creates `.gix/config`, commits it, and
-creates the `develop` branch if it doesn't exist yet):
+See [Installation](docs/INSTALLATION.md) for all options.
+
+## Quick Start
+
+Initialize gix in an existing Git repository:
 
 ```bash
 gix flow init
@@ -44,70 +65,46 @@ Start a feature:
 
 ```bash
 gix feature start api-auth
-# → creates and switches to feature/api-auth, from develop
-```
-
-Work, commit normally with plain `git commit`, then finish:
-
-```bash
+# work and commit normally
 gix feature finish api-auth
-# → merges feature/api-auth into develop (--no-ff)
-# → deletes the feature branch
 ```
 
-Releases work the same way, but merge into both `main` and `develop`,
-and can be tagged:
+Create a release:
 
 ```bash
-gix release start v0.1.0
-# ...commit release prep...
-gix release finish v0.1.0 --tag v0.1.0
-# → merges release/v0.1.0 into main, then develop
-# → tags v0.1.0 on main
-# → deletes the release branch
+gix release start v0.2.0
+# release work + commits
+gix release finish v0.2.0 --tag v0.2.0
 ```
 
-Check where you are:
+Inspect the flow:
 
 ```bash
-gix status   # current branch, base, ahead/behind, clean/dirty
-gix list     # active feature/ and release/ branches
+gix status
+gix list --tree
+gix config list
 ```
-
-## Configuration
-
-`gix flow init` writes `.gix/config` at the repo root:
-
-```
-version = 1
-branch.main = main
-branch.develop = develop
-prefix.feature = feature/
-prefix.release = release/
-remote = origin
-```
-
-It's a plain committed file, not a personal dotfile — everyone working
-in the repo shares the same branch model. Edit it by hand if you need
-different branch names or prefixes.
-
-## What this is not (yet)
-
-> This is an early MVP. It intentionally does not do commit message
-generation, hooks, safety backups, or anything beyond the branch flow
-itself — those were planned in earlier drafts of this project but
-weren't implemented, so they've been dropped from scope rather than
-left as empty stubs. If they come back, they'll be built the same way
-the flow commands were: implemented before they're documented.
 
 ## Development
 
 ```bash
-make build   # build ./build/gix
-make test    # go test ./...
-make clean   # remove build/
+make setup       # enable Git hooks
+make build       # build/gix
+make test        # tests
+make quality     # fmt-check + test + vet
+make lint        # golangci-lint
+make ci          # quality + lint
+make docker      # build Docker image
 ```
+
+## Documentation
+
+See [docs/](docs/README.md) for commands, configuration, installation, architecture, and release notes.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT — see [LICENSE](LICENSE).
