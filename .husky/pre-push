@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+if command -v go >/dev/null 2>&1; then
+  go test ./... || exit 1
+else
+  echo "gix: go not found, skipping tests" >&2
+fi
+
+exit 0

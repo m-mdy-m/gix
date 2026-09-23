@@ -1,0 +1,34 @@
+#!/usr/bin/env sh
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+first=$(head -n 1 "$msg_file")
+
+case "$first" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+# type(scope): subject   — scope optional, subject must not be empty
+if ! printf '%s\n' "$first" | grep -Eq \
+  '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([[:alnum:]_.-]+\))?!?: .+'; then
+  cat >&2 <<'EOF'
+gix: invalid commit message
+
+  expected:  <type>(<scope>): <subject>
+  types:     feat fix docs style refactor perf test build ci chore revert
+  example:   feat(flow): allow custom release prefixes
+
+  scope is optional; merge/revert commits are skipped automatically.
+  see quality/commitlint/README.md
+EOF
+  exit 1
+fi
+
+# full commitlint rules when it is installed (optional)
+if command -v npx >/dev/null 2>&1 && npx --no-install commitlint --version >/dev/null 2>&1; then
+  npx --no-install commitlint --config quality/commitlint/commitlint.config.js \
+    --edit "$msg_file" || exit 1
+fi
+
+exit 0
