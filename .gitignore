@@ -29,3 +29,6 @@ vendor/
 build/
 bin/
 dist/
+
+# Archives
+*.rar
