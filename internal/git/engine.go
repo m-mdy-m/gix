@@ -58,6 +58,20 @@ func IsRepo() bool {
 	return err == nil && out == "true"
 }
 
+func InitRepo(initialBranch string) error {
+	args := []string{"init"}
+	if initialBranch != "" {
+		args = append(args, "-b", initialBranch)
+	}
+	_, err := Run(args...)
+	return err
+}
+
+func EmptyCommit(message string, extraEnv []string) error {
+	_, err := RunEnv(extraEnv, "commit", "--allow-empty", "-m", message)
+	return err
+}
+
 func RepoRoot() (string, error) {
 	return Run("rev-parse", "--show-toplevel")
 }

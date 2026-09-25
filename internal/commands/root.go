@@ -9,6 +9,7 @@ import (
 var Version = "dev"
 
 var registrables = []cli.Registrable{
+	cli.RegistrableFunc(registerInit),
 	flowCommands{},
 	branchKindCommands{},
 	cli.RegistrableFunc(registerStatus),

@@ -5,8 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
 ## [0.1.0] - 2026-09-23
 
 First public release. `gix` automates one git-flow-style branching
@@ -40,5 +38,20 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[Unreleased]: https://github.com/m-mdy-m/gix/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.1.0
+
+## [0.2.0] - 2026-09-25
+
+### Added
+
+* `gix init` — initialize a Git repository in the current directory.
+* Support for specifying the initial branch name during repository initialization.
+* Automatic creation of an initial empty commit for a newly initialized repository.
+* Git engine helpers for repository initialization and empty commits.
+
+### Changed
+
+* Registered the `init` command in the root command registry.
+
+[0.2.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.2.0
 [0.1.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.1.0
