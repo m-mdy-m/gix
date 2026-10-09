@@ -5,6 +5,145 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-10-10
+
+### Added
+
+* Prerelease versions (SemVer 2.0.0) in `gix version`:
+  `gix version bump minor --pre rc` starts `0.5.0-rc.1`,
+  `gix version bump --pre rc` moves on to `rc.2` (or to a later name
+  such as `beta` → `rc`), and `gix version bump --release` promotes
+  `1.0.0-rc.2` to `1.0.0`. `patch`, `minor`, and `major` on a prerelease
+  go to the next stable version from its core (`1.0.0-rc.1` minor is
+  `1.1.0`); they never promote it. A prerelease can only move forward.
+  Tags stay `v`-prefixed (`v1.0.0-rc.1`), nothing is overwritten, and
+  `--dry-run`, the main-branch rule, and the clean-tree rule all apply.
+  Versions are ordered by SemVer 2.0.0 precedence in gix itself rather
+  than by Git's tag order, which sorts `v1.0.0-rc.1` above `v1.0.0`.
+  Build metadata (`+build`) is not supported, and a tag carrying it is
+  ignored.
+* `gix doctor` — inspects the repository and reports what would stop gix
+  working: flow setup, HEAD state, working tree, unfinished Git
+  operations, Git identity, remote, upstream, signing, and whether the
+  base branches `.gix/config` names exist. Read-only; it never rewrites
+  anything, and no check ever suggests a command that could discard work
+  or history.
+* `gix doctor --fix` — applies only what you name explicitly:
+  `--set-user-name` + `--set-user-email`, written to `--scope local`
+  (default) or `global`. gix never guesses an identity and never
+  overwrites one you didn't ask it to. With no identity flags it prints
+  the exact command for each problem instead.
+* `gix doctor --strict` — exits non-zero when anything needs attention,
+  so CI can fail on it. Without it `doctor` still always exits 0: it
+  reports, and what counts as blocking is the caller's call.
+* `gix signing status` — reports the signing format (`openpgp`, `ssh`,
+  `x509`), the configured key and its scope, whether commits and tags are
+  signed, and whether the signing program is on `PATH`. Detection only:
+  gix never signs anything and never prints key material.
+* `gix branch doctor` — one row per local branch showing its config kind,
+  the upstream it tracks, how far ahead or behind it is, and a state:
+  `tracked`, `ahead`, `behind`, `diverged`, `untracked`, or `gone`.
+  `--all` includes healthy branches. Read-only.
+* `gix branch prune` — lists branches whose configured merge targets
+  already contain their work, plus branches whose upstream is gone.
+  `--apply` deletes the ones that are fully merged, using
+  `git branch -d` and never `-D`, so git's own refusal to delete an
+  unmerged branch is the safety net. A branch whose upstream merely
+  disappeared is listed but left alone, because a missing upstream does
+  not mean its work was merged. Base branches, the current branch, and
+  anything unmerged are never candidates. Without the flag it is a
+  preview and deletes nothing.
+* A `LAST COMMIT` column in `gix branch doctor` showing how long ago each
+  branch tip moved. gix reports the age rather than deciding what counts
+  as stale.
+* `gix branch sync` — brings a source branch into every topic branch, so a
+  change on `develop` reaches work in progress. `--from` picks the source
+  (default: the base branch you are on). Conflicts are detected before
+  anything is merged using `git merge-tree`, reported per branch, and
+  never resolved automatically. One branch failing does not stop the
+  rest, and the command exits non-zero so CI notices. Base branches and
+  the source are never modified, only merging is used (never rebase), and
+  you are put back on the branch you started on.
+* `gix branch sync --auto` — narrows a sync run to the branches
+  `.gix/config` marks `autosync: true`, on a topic kind or on a base
+  branch (which is how the default config already describes `develop`
+  following `main`). The source is the one branch given by `--from`, not
+  looked up per branch from its `parent`. This makes the `autosync` key,
+  which was previously written but never read, meaningful.
+* `gix version show` — the current release version, read from the
+  repository's tags, and how many commits have landed since.
+* `gix version bump <patch|minor|major>` (and the prerelease forms above) — calculates the next version
+  and creates one annotated tag on `main`, with `--dry-run` to preview
+  it. The tags are the version record: there is no version file to keep
+  in step. It deliberately does not edit `CHANGELOG.md`, make a commit,
+  sign the tag, or push, because the repository has no convention for any
+  of those. It refuses to run anywhere but `main`, on a detached HEAD, on
+  a dirty tree, or during an unfinished merge.
+* A topic kind added to `.gix/config` now gets its own start/finish
+  command group, so `gix wip start api` works with no code change. The
+  built-in kinds stay registered unconditionally, and a config key can
+  never shadow an existing command.
+* `gix config set <kind> --autosync=true|false`, `autosync` in
+  `gix config list`, and `gix config set <base> --autosync` so a base
+  branch's one setting is reachable without editing the file. Topic-only
+  flags are still rejected for a base branch.
+* `ui.Table` — aligned columns for output that compares several
+  attributes per row.
+* Git engine helpers: `ListBranchTracking` (one `for-each-ref` call
+  returning every branch with its upstream and Git's own
+  `%(upstream:track)` summary, including the `[gone]` case),
+  `ListBranchCommits`, `ListTags`, `MergeTreeConflicts`, `RunStatus`
+  (keeps stdout on a non-zero exit), `MergeNoFF`, `AbortMerge`.
+* `internal/testutil` — throwaway Git repositories with isolated config
+  for tests, and tests that skip rather than fail when `git` is absent.
+* `docs/configuration.md` — documents every `.gix/config` key and what
+  validation rejects. Fixes a broken link from `docs/README.md`.
+* `docs/commands.md` — every command step by step, as the code runs it:
+  what it checks, what it changes, what it never touches, plus a list of
+  known limits.
+
+### Changed
+
+* The release workflow publishes a tag containing `-` (such as
+  `v1.0.0-rc.1`) as a GitHub prerelease and no longer moves the Docker
+  `latest` tag for it. Stable tags behave as before.
+* The `.gix/config` header comment now points at
+  `docs/configuration.md` instead of a page that didn't exist.
+* A `rebase` or `squash` `downstream_strategy` is now respected by
+  `gix branch sync`: the branch is skipped with a message, because a sync
+  that rebased would rewrite that branch's history.
+
+### Fixed
+
+* `docs/examples.md` and `docs/getting-start.md` no longer document
+  `gix release` for version bumping or imply autocommit exists.
+* `gix doctor`'s check headings now go to stdout alongside their
+  findings, instead of the heading going to stderr and the details to
+  stdout. A redirected report (`gix doctor > report.txt`) was missing the
+  names of the checks that had problems.
+* `gix version show` no longer fails with git's raw "ambiguous argument
+  'HEAD'" when the repository has no commits yet.
+* `gix version bump` refuses to run anywhere but the main branch, which is
+  where gix already puts release tags, so a develop or feature commit
+  cannot be tagged as a release.
+* `gix branch sync` reports a branch it cannot check out — because
+  another worktree holds it — as a failure for that branch and carries on
+  with the rest, instead of leaving it out of the report.
+* Tests skip, rather than fail, when `git` is not on `PATH`.
+
+## [0.2.0] - 2026-09-25
+
+### Added
+
+* `gix init` — initialize a Git repository in the current directory.
+* Support for specifying the initial branch name during repository initialization.
+* Automatic creation of an initial empty commit for a newly initialized repository.
+* Git engine helpers for repository initialization and empty commits.
+
+### Changed
+
+* Registered the `init` command in the root command registry.
+
 ## [0.1.0] - 2026-09-23
 
 First public release. `gix` automates one git-flow-style branching
@@ -38,20 +177,6 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[0.1.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.1.0
-
-## [0.2.0] - 2026-09-25
-
-### Added
-
-* `gix init` — initialize a Git repository in the current directory.
-* Support for specifying the initial branch name during repository initialization.
-* Automatic creation of an initial empty commit for a newly initialized repository.
-* Git engine helpers for repository initialization and empty commits.
-
-### Changed
-
-* Registered the `init` command in the root command registry.
-
+[Unreleased]: https://github.com/m-mdy-m/gix/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.2.0
 [0.1.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.1.0
