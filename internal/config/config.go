@@ -130,7 +130,7 @@ func Save(repoRoot string, cfg *Config) error {
 	}
 
 	path := Path(repoRoot)
-	header := "# gix flow config — see `gix config list` or docs/FLAGS.md\n"
+	header := "# gix flow config — see `gix config list` or docs/configuration.md\n"
 	if err := os.WriteFile(path, append([]byte(header), out...), 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}

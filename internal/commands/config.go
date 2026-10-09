@@ -51,6 +51,7 @@ func newConfigListCmd(ctx *cli.Context) *cobra.Command {
 				ui.Field("upstream", "%s", spec.Upstream())
 				ui.Field("downstream", "%s", spec.Downstream())
 				ui.Field("tag", "%t", spec.Tag)
+				ui.Field("autosync", "%t", spec.AutoSync)
 				ui.Field("delete", "%t", spec.DeleteOnFinish)
 			}
 			return nil
@@ -60,7 +61,7 @@ func newConfigListCmd(ctx *cli.Context) *cobra.Command {
 
 func newConfigSetCmd(ctx *cli.Context) *cobra.Command {
 	var prefix, upstream, downstream string
-	var tag, deleteOnFinish string // tri-state: "", "true", "false" — see parseTriState
+	var tag, deleteOnFinish, autosync string // tri-state: "", "true", "false" — see parseTriState
 
 	cmd := &cobra.Command{
 		Use:   "set <kind>",
@@ -72,7 +73,8 @@ changed; everything else in .gix/config is left as-is.
 Examples:
   gix config set release --upstream-strategy=squash
   gix config set feature --prefix=feat/
-  gix config set hotfix --tag=false`,
+  gix config set hotfix --tag=false
+  gix config set feature --autosync=true`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, cfg, err := ctx.Config()
@@ -82,8 +84,15 @@ Examples:
 
 			kind := args[0]
 			spec, ok := cfg.Spec(kind)
-			if !ok || spec.Role != config.RoleTopic {
-				return fmt.Errorf("unknown topic branch kind %q (see `gix config list`)", kind)
+			if !ok {
+				return fmt.Errorf("unknown branch %q (see `gix config list`)", kind)
+			}
+
+			// A base branch has only one setting of its own — autosync —
+			// so accept it here rather than making the user edit the file.
+			// Everything else is topic-kind specific and is rejected below.
+			if spec.Role != config.RoleTopic && (prefix != "" || upstream != "" || downstream != "" || tag != "" || deleteOnFinish != "") {
+				return fmt.Errorf("%s is a base branch: only --autosync applies to it (see `gix config list`)", kind)
 			}
 
 			changed := false
@@ -124,9 +133,17 @@ Examples:
 				spec.DeleteOnFinish = v
 				changed = true
 			}
+			if autosync != "" {
+				v, err := parseTriState(autosync)
+				if err != nil {
+					return fmt.Errorf("--autosync: %w", err)
+				}
+				spec.AutoSync = v
+				changed = true
+			}
 
 			if !changed {
-				return fmt.Errorf("no changes given — pass at least one of --prefix, --upstream-strategy, --downstream-strategy, --tag, --delete-on-finish")
+				return fmt.Errorf("no changes given — pass at least one of --prefix, --upstream-strategy, --downstream-strategy, --tag, --delete-on-finish, --autosync")
 			}
 
 			cfg.Branch[kind] = spec
@@ -144,6 +161,7 @@ Examples:
 	cmd.Flags().StringVar(&downstream, "downstream-strategy", "", "merge or rebase")
 	cmd.Flags().StringVar(&tag, "tag", "", "true or false: whether finish accepts --tag")
 	cmd.Flags().StringVar(&deleteOnFinish, "delete-on-finish", "", "true or false: whether finish deletes the branch by default")
+	cmd.Flags().StringVar(&autosync, "autosync", "", "true or false: whether `gix branch sync --auto` updates this kind")
 
 	return cmd
 }
