@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 )
@@ -48,6 +49,21 @@ func wrap(code, s string) string {
 	return code + s + reset
 }
 
+// Check prints one line of a report with a severity marker: ✓ when the
+// check passed, ! when it found something.
+//
+// A report goes to stdout even when it contains problems, so redirecting
+// one still gives a readable document. The verdict about the run — what
+// to do, and whether it passed — is a diagnostic, and stays on stderr.
+func Check(ok bool, format string, a ...interface{}) {
+	if ok {
+		fmt.Fprint(Out, wrap(green+bold, "✓ "))
+	} else {
+		fmt.Fprint(Out, wrap(yellow+bold, "! "))
+	}
+	fmt.Fprintf(Out, format+"\n", a...)
+}
+
 func Success(format string, a ...interface{}) {
 	fmt.Fprint(Out, wrap(green+bold, "✓ "))
 	fmt.Fprintf(Out, format+"\n", a...)
@@ -81,6 +97,63 @@ func Bold(s string) string { return wrap(bold, s) }
 
 func Field(label string, format string, a ...interface{}) {
 	fmt.Fprintf(Out, "  %s  %s\n", wrap(faint, fmt.Sprintf("%-10s", label)), fmt.Sprintf(format, a...))
+}
+
+// Table prints aligned columns with an optional header. Widths come from
+// the content itself, so the layout is deterministic and doesn't depend
+// on the terminal. Useful where rows have more than one attribute to
+// compare, like branch state across every branch.
+func Table(header []string, rows [][]string) {
+	if len(header) == 0 && len(rows) == 0 {
+		return
+	}
+
+	cols := 0
+	if len(header) > 0 {
+		cols = len(header)
+	}
+	for _, r := range rows {
+		if len(r) > cols {
+			cols = len(r)
+		}
+	}
+	if cols == 0 {
+		return
+	}
+
+	widths := make([]int, cols)
+	measure := func(cells []string) {
+		for i, cell := range cells {
+			if n := len([]rune(cell)); n > widths[i] {
+				widths[i] = n
+			}
+		}
+	}
+	if len(header) > 0 {
+		measure(header)
+	}
+	for _, r := range rows {
+		measure(r)
+	}
+
+	if len(header) > 0 {
+		fmt.Fprintln(Out, wrap(faint, strings.TrimRight(padRow(header, widths), " ")))
+	}
+	for _, r := range rows {
+		fmt.Fprintln(Out, padRow(r, widths))
+	}
+}
+
+func padRow(cells []string, widths []int) string {
+	parts := make([]string, len(widths))
+	for i := range widths {
+		cell := ""
+		if i < len(cells) {
+			cell = cells[i]
+		}
+		parts[i] = cell + strings.Repeat(" ", widths[i]-len([]rune(cell)))
+	}
+	return strings.TrimRight(strings.Join(parts, "  "), " ")
 }
 
 type TreeNode struct {

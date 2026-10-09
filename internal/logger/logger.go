@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 )
 
 type Level int
@@ -70,13 +69,6 @@ func (l *Logger) logf(min Level, format string, a ...interface{}) {
 func (l *Logger) Verbosef(format string, a ...interface{}) { l.logf(LevelVerbose, format, a...) }
 
 func (l *Logger) Debugf(format string, a ...interface{}) { l.logf(LevelDebug, format, a...) }
-
-func (l *Logger) Timed(label string, fn func() error) error {
-	start := time.Now()
-	err := fn()
-	l.Debugf("%s took %s", label, time.Since(start).Round(time.Millisecond))
-	return err
-}
 
 func Verbosef(format string, a ...interface{}) { std.Verbosef(format, a...) }
 func Debugf(format string, a ...interface{})   { std.Debugf(format, a...) }
