@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-10-10
+
+### Changed
+
+* The `pre-push` hook no longer runs the whole test suite. CI already
+  does on every push, and the suite spawns thousands of `git` processes,
+  which took around ten minutes on Windows. The hook now checks that the
+  code builds and vets, does nothing for a push that only carries tags (a
+  release), and runs the tests when you ask: `GIX_FULL_TEST=1 git push`.
+* Test repositories set their identity by writing `.git/config` directly
+  instead of running four `git config` commands each, which cuts about a
+  sixth of the `git` processes a test run starts.
+
+No change to the `gix` binary itself: this release is development tooling
+only.
+
 ## [1.1.0] - 2026-10-10
 
 ### Added
@@ -250,7 +266,8 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/m-mdy-m/gix/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/m-mdy-m/gix/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/m-mdy-m/gix/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/m-mdy-m/gix/compare/v0.2.0...v1.0.0

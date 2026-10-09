@@ -52,10 +52,7 @@ func NewRepo(t *testing.T) *Repo {
 
 	r := NewDir(t)
 	r.Run("init", "-b", "main")
-	r.Run("config", "user.name", "gix test")
-	r.Run("config", "user.email", "gix-test@example.invalid")
-	r.Run("config", "commit.gpgsign", "false")
-	r.Run("config", "tag.gpgsign", "false")
+	r.writeLocalConfig()
 
 	r.Write("README.md", "gix test repo\n")
 	r.Commit("initial commit")
@@ -65,6 +62,31 @@ func NewRepo(t *testing.T) *Repo {
 	r.Root = r.Output("rev-parse", "--show-toplevel")
 
 	return r
+}
+
+// writeLocalConfig sets the repo's identity and turns signing off by
+// appending to .git/config, which is exactly what four `git config`
+// calls would write. Each git process costs tens of milliseconds on
+// Windows and hundreds of repos are created per test run, so this is the
+// difference between a test run measured in seconds and in minutes.
+func (r *Repo) writeLocalConfig() {
+	r.t.Helper()
+
+	const cfg = "[user]\n\tname = gix test\n\temail = gix-test@example.invalid\n" +
+		"[commit]\n\tgpgsign = false\n" +
+		"[tag]\n\tgpgsign = false\n"
+
+	f, err := os.OpenFile(filepath.Join(r.Root, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		r.t.Fatalf("opening .git/config: %v", err)
+	}
+	if _, err := f.WriteString(cfg); err != nil {
+		f.Close()
+		r.t.Fatalf("writing .git/config: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		r.t.Fatalf("closing .git/config: %v", err)
+	}
 }
 
 // isolateEnv points Git at a config that belongs to this test alone,

@@ -19,7 +19,7 @@ chmod +x .husky/pre-commit .husky/commit-msg .husky/pre-push
 |------|------|--------------|
 | `pre-commit` | `git commit` (before) | `gofmt` + `go vet` |
 | `commit-msg` | `git commit` | Conventional Commits format ([rules](../quality/commitlint/)) |
-| `pre-push` | `git push` | `go test ./...` |
+| `pre-push` | `git push` | `go build` + `go vet`. Tests run in CI; `GIX_FULL_TEST=1 git push` runs them here too. Tag-only pushes check nothing. |
 
 All are `sh` scripts — they work with Git Bash / WSL on Windows.
 
