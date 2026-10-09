@@ -28,6 +28,15 @@ gix shells out to the real `git` binary. Every repo it manages is an
 ordinary Git repository — `git log`, `git merge`, your IDE's Git
 integration all keep working with or without gix.
 
+## When something looks wrong
+
+`gix doctor` inspects the repository and reports anything that would
+stop gix working: the flow setup, HEAD, the working tree, remotes,
+upstream, your Git identity, signing, and whether the base branches
+`.gix/config` names actually exist. It only reports — nothing is
+rewritten, and no check suggests a command that could discard work or
+history.
+
 ## Next
 
 - First time? → [Getting started](getting-start.md)

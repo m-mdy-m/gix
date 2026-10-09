@@ -16,6 +16,10 @@ main
 - **Flow-aware** — branch parents and merge targets come from `.gix/config`.
 - **Simple** — `start` and `finish` cover the common flow.
 - **Safe by default** — refuses dirty working trees and unfinished Git operations.
+- **Diagnosable** — `gix doctor` reports anything that would stop it working, and never rewrites anything.
+- **Config-driven** — a branch kind added to `.gix/config` gets its own commands, no code change.
+- **Opt-in syncing** — `gix branch sync` brings base-branch changes into your work in progress, reports conflicts instead of resolving them, and never runs on its own.
+- **Releases** — `gix version bump` calculates the next version from your tags and creates it. It edits no files, commits nothing, and pushes nothing.
 - **Taggable releases** — release/hotfix branches can create annotated tags.
 - **Cross-platform** — Linux, macOS, and Windows binaries are published.
 
@@ -83,7 +87,18 @@ Inspect the flow:
 gix status
 gix list --tree
 gix config list
+gix doctor
+gix branch doctor
 ```
+
+`gix doctor` checks that everything gix depends on is in place — flow
+setup, HEAD, working tree, remote, upstream, Git identity, and signing —
+and reports what it finds. It only reports; nothing is rewritten.
+
+`gix branch sync` brings `develop` (or `--from`) into your feature
+branches. It merges only, reports conflicts instead of resolving them,
+and can be previewed with `--dry-run`. `--auto` narrows the run to the
+branches `.gix/config` marks `autosync: true`.
 
 ## Development
 

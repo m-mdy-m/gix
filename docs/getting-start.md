@@ -68,4 +68,13 @@ gix status   # current branch, role, ahead/behind, dirty state
 gix list     # active branches   (gix list --tree for a tree view)
 ```
 
+## Something's wrong?
+
+```bash
+gix doctor   # checks the flow, HEAD, tree, remotes, identity, signing
+```
+
+`gix doctor` only reports — it never rewrites anything. For a missing
+Git identity it prints the exact command to set one.
+
 Next: [Examples](examples.md) · [Commands](api/README.md)
