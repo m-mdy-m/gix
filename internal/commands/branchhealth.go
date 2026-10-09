@@ -146,7 +146,7 @@ func branchKind(h flow.BranchHealth) string {
 func branchHints(h flow.BranchHealth) []string {
 	var hints []string
 
-	if len(h.MergedInto) > 0 {
+	if h.Finished() {
 		hints = append(hints, fmt.Sprintf("%s is already merged into %s — `gix branch prune` lists it", h.Name, joinNames(h.MergedInto)))
 	}
 

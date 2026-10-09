@@ -235,12 +235,13 @@ flags it fails with `no changes given`.
 
 ### `gix doctor`
 
-Read-only report with ten checks, always in the same order, so two runs
+Read-only report with eleven checks, always in the same order, so two runs
 print the same thing. Each check is `ok`, a warning, or a failure, with a
 reason and the exact command that fixes it.
 
 | Check | Fails or warns when |
 |-------|---------------------|
+| git | the installed Git is older than 2.38 (warning), which `gix branch sync` needs for merge previews |
 | repository | not inside a Git repository |
 | gix config | missing (warning) or invalid (failure) |
 | HEAD | detached, or no commits yet |
@@ -325,7 +326,9 @@ landed on `develop` reaches work in progress.
    - no common ancestor: `failed`
    - asks `git merge-tree` whether the merge would conflict, **without
      touching the repository**. A conflict is reported with the files and
-     the branch is left alone.
+     the branch is left alone. If `merge-tree` itself fails (an unknown
+     ref, or a Git older than 2.38), that is reported as an error, never
+     as a clean merge.
    - otherwise checks the branch out and runs `git merge --no-ff
      --no-edit`. If that still fails, the merge is aborted so the next
      branch is not blocked.
@@ -345,7 +348,10 @@ Lists branches that could be cleaned up. Without `--apply` it deletes
 nothing.
 
 A branch is listed when every one of its merge targets already contains
-it, or when its upstream is gone. Base branches and the branch you are
+it and it has commits of its own, or when its upstream is gone. A branch
+you just started, with no commits yet, points at the same commit as its
+target and is not listed. A hotfix that has reached `main` but not yet
+`develop` is not listed either. Base branches and the branch you are
 standing on are never listed.
 
 `--apply` deletes only the fully merged ones, with `git branch -d`, never
@@ -436,5 +442,11 @@ more.
 - **`autosync` on a base branch** is read by the branch's own name, so a
   renamed base branch (say `main` called `trunk`) does not pick up its
   `autosync` flag in `branch doctor`.
+- **A branch fast-forwarded into its target** points at the same commit as
+  that target afterwards, so `branch prune` cannot tell it from a branch
+  you just started and keeps it. `finish` deletes such a branch itself.
+- **`gix branch sync` needs Git 2.38 or newer** for `git merge-tree
+  --write-tree`. Older versions get an error up front, and `gix doctor`
+  warns about it.
 - **Nothing fetches.** Ahead and behind counts, and `gone` upstreams, are
   as of your last `git fetch`.

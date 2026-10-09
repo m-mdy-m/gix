@@ -508,3 +508,24 @@ func TestSyncEntryOK(t *testing.T) {
 		}
 	}
 }
+
+// A branch skipped on purpose (a rebase or squash strategy) did not fail,
+// so the error message must not name it next to the real conflict.
+func TestSyncErrorMessageIgnoresSkippedBranches(t *testing.T) {
+	result := &SyncResult{
+		Conflicted: 1,
+		Entries: []SyncEntry{
+			{Branch: "feature/a", Source: "develop", State: SyncConflict},
+			{Branch: "feature/b", Source: "develop", State: SyncSkipped},
+			{Branch: "feature/c", Source: "develop", State: SyncMerged},
+		},
+	}
+
+	msg := (&SyncError{Result: result}).Error()
+	if !strings.Contains(msg, "feature/a") {
+		t.Errorf("message = %q, want it to name the conflicting branch", msg)
+	}
+	if strings.Contains(msg, "feature/b") || strings.Contains(msg, "feature/c") {
+		t.Errorf("message = %q, want only the branch that conflicted", msg)
+	}
+}

@@ -59,6 +59,16 @@ type BranchHealth struct {
 	// this branch's commits — empty for a base branch.
 	MergedInto []string
 
+	// TargetCount is how many merge targets the branch's kind configures.
+	// A branch is only merged once every one of them contains it.
+	TargetCount int
+
+	// NoOwnCommits is true when the branch tip is the same commit as a
+	// merge target's tip: nothing has been committed on it yet. Such a
+	// branch is trivially "contained" by its target, but it is a branch
+	// someone just started, not one that finished.
+	NoOwnCommits bool
+
 	// AgeDays is how long ago this branch's tip commit was, or -1 when the
 	// branch has no commit yet.
 	AgeDays int
@@ -68,10 +78,20 @@ type BranchHealth struct {
 // has lost its upstream.
 func (h BranchHealth) NeedsWork() bool { return h.State.Attention() }
 
-// AlreadyMerged reports whether every merge target already contains this
-// branch, which is what makes it safe to delete.
+// AlreadyMerged reports whether every configured merge target already
+// contains this branch. A hotfix that reached main but not yet develop is
+// not merged: deleting it then would drop the only name for a fix develop
+// still lacks.
 func (h BranchHealth) AlreadyMerged() bool {
-	return len(h.MergedInto) > 0
+	return len(h.MergedInto) > 0 && len(h.MergedInto) == h.TargetCount
+}
+
+// Finished reports whether the branch is merged and has work of its own,
+// which is what makes it a prune candidate. A branch that was just
+// started has no commits yet; it is "contained" by its target only
+// because it still points at the same commit.
+func (h BranchHealth) Finished() bool {
+	return h.AlreadyMerged() && !h.NoOwnCommits
 }
 
 // CheckBranches inspects every local branch: where it sits in the
@@ -163,6 +183,8 @@ func branchHealth(cfg *config.Config, ref git.BranchTracking) BranchHealth {
 		return h
 	}
 	h.MergedInto = mergedTargets(cfg, spec, h.Name)
+	h.TargetCount = len(spec.MergeTargets())
+	h.NoOwnCommits = sharesTipWithTarget(cfg, spec, h.Name)
 	return h
 }
 
@@ -204,6 +226,26 @@ func firstTarget(cfg *config.Config, spec config.BranchSpec) string {
 // mergedTargets lists the merge targets that already contain the branch.
 // A missing target is skipped rather than reported: not being able to
 // tell is different from knowing it isn't merged.
+// sharesTipWithTarget reports whether the branch points at exactly the
+// same commit as one of its merge targets, meaning nothing was ever
+// committed on it.
+func sharesTipWithTarget(cfg *config.Config, spec config.BranchSpec, branch string) bool {
+	tip, err := git.Run("rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	if err != nil || tip == "" {
+		return false
+	}
+	for _, key := range spec.MergeTargets() {
+		name := resolveBranchName(cfg, key)
+		if !git.BranchExists(name) {
+			continue
+		}
+		if other, err := git.Run("rev-parse", "--verify", "--quiet", "refs/heads/"+name); err == nil && other == tip {
+			return true
+		}
+	}
+	return false
+}
+
 func mergedTargets(cfg *config.Config, spec config.BranchSpec, branch string) []string {
 	var out []string
 	for _, key := range spec.MergeTargets() {
@@ -262,7 +304,7 @@ func PlanPrune(cfg *config.Config, health []BranchHealth, current string) PruneP
 		}
 
 		switch {
-		case h.AlreadyMerged():
+		case h.Finished():
 			plan.Entries = append(plan.Entries, PruneEntry{
 				Name:   h.Name,
 				Kind:   h.Kind,

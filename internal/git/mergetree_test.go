@@ -105,21 +105,19 @@ func TestMergeTreeConflictsLeavesRepoAlone(t *testing.T) {
 	}
 }
 
-// merge-tree works at the tree level and treats a missing merge base as an
-// empty base, so it does not flag unrelated histories. Callers that care
-// must check for a merge base separately — `gix branch sync` does.
-func TestMergeTreeConflictsIgnoresUnrelatedHistories(t *testing.T) {
+// merge-tree refuses unrelated histories outright (exit 128). That is a
+// failure to compare, not "no conflicts", so it must come back as an
+// error. `gix branch sync` checks for a merge base first and reports
+// unrelated histories itself, so it never reaches this.
+func TestMergeTreeConflictsRefusesUnrelatedHistories(t *testing.T) {
 	repo := testutil.NewRepo(t)
 	repo.Run("checkout", "--orphan", "island")
 	repo.Write("island.txt", "island\n")
 	repo.Commit("chore: island")
 
 	files, err := MergeTreeConflicts("main", "island")
-	if err != nil {
-		t.Fatalf("MergeTreeConflicts: %v", err)
-	}
-	if len(files) != 0 {
-		t.Errorf("conflicts = %v, want none: unrelated histories are not a file conflict", files)
+	if err == nil {
+		t.Fatalf("MergeTreeConflicts = %v, nil; want an error for unrelated histories", files)
 	}
 }
 
@@ -225,5 +223,22 @@ func TestRunReturnsNothingOnFailure(t *testing.T) {
 	}
 	if out != "" {
 		t.Errorf("Run stdout = %q, want it empty on failure", out)
+	}
+}
+
+// A ref git cannot find is not "no conflicts": merge-tree exits 1 for it
+// with nothing on stdout, and that used to read as a clean merge.
+func TestMergeTreeUnknownRefIsAnError(t *testing.T) {
+	repo := testutil.NewRepo(t)
+
+	repo.CommitOn("topic", "topic.txt", "topic work\n", "feat: topic")
+	repo.Checkout("main")
+
+	files, err := MergeTreeConflicts("main", "does-not-exist")
+	if err == nil {
+		t.Fatalf("MergeTreeConflicts = %v, nil; want an error for an unknown ref", files)
+	}
+	if !strings.Contains(err.Error(), "does-not-exist") {
+		t.Errorf("error = %q, want it to name the ref that failed", err)
 	}
 }

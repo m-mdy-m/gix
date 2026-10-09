@@ -468,3 +468,12 @@ func setUpstream(t *testing.T, repo *testutil.Repo, branch, upstream string) {
 	repo.Run("config", "branch."+branch+".remote", remote)
 	repo.Run("config", "branch."+branch+".merge", "refs/heads/"+remoteBranch)
 }
+
+func TestCheckRepoReportsGitVersion(t *testing.T) {
+	repo, _ := flowRepo(t)
+
+	c := find(t, CheckRepo(repo.Root), "git")
+	if c.Value == "" && c.Severity == OK {
+		t.Errorf("git check = %+v, want the installed version as its value", c)
+	}
+}

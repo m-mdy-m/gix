@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,20 +22,29 @@ var log = logger.WithPrefix("git")
 // only as a flag — `merge-tree` prints the conflicted file names that way.
 // Run deliberately returns "" on error, so those answers would be lost.
 func RunStatus(args ...string) (string, error) {
+	out, _, err := runCapture(args...)
+	return out, err
+}
+
+// runCapture runs git and returns stdout and stderr separately, together
+// with the raw error (an *exec.ExitError for a non-zero exit, so callers
+// can tell "git said no" from "git could not run").
+func runCapture(args ...string) (stdout, stderr string, err error) {
 	log.Verbosef("git %s", strings.Join(args, " "))
 
 	cmd := exec.Command("git", args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
 
-	err := cmd.Run()
-	log.Debugf("stdout: %q", strings.TrimSpace(stdout.String()))
-	if stderr.Len() > 0 {
-		log.Debugf("stderr: %q", strings.TrimSpace(stderr.String()))
+	err = cmd.Run()
+	stdout = strings.TrimSpace(outBuf.String())
+	stderr = strings.TrimSpace(errBuf.String())
+	log.Debugf("stdout: %q", stdout)
+	if stderr != "" {
+		log.Debugf("stderr: %q", stderr)
 	}
-
-	return strings.TrimSpace(stdout.String()), err
+	return stdout, stderr, err
 }
 
 // MergeTreeConflicts reports the paths a merge of two branches would
@@ -42,45 +52,66 @@ func RunStatus(args ...string) (string, error) {
 // merge is clean.
 //
 // merge-tree prints each conflict as a tab-separated stage line and exits
-// non-zero when there was at least one, so the exit status and the file
-// list have to be read together.
+// with status 1 when there was at least one. Any other failure — an
+// unknown ref, or a Git too old to know `--write-tree` (exit 129) — is an
+// error, never "no conflicts": a preview that cannot tell must say so
+// instead of reporting a clean merge.
 func MergeTreeConflicts(ours, theirs string) ([]string, error) {
-	out, err := RunStatus("merge-tree", "--write-tree", ours, theirs)
+	out, stderr, err := runCapture("merge-tree", "--write-tree", ours, theirs)
 	if err == nil {
 		return nil, nil
 	}
 
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
+		return nil, mergeTreeError(ours, theirs, stderr, err)
+	}
+
 	var files []string
 	seen := map[string]bool{}
+	add := func(path string) {
+		path = strings.TrimSpace(path)
+		if path != "" && !seen[path] {
+			seen[path] = true
+			files = append(files, path)
+		}
+	}
 	for _, line := range strings.Split(out, "\n") {
 		// A conflict line looks like "100644 <sha> 2<TAB>path". Only those
 		// carry a tab; the rest of the output is the resulting tree id.
-		_, path, ok := strings.Cut(line, "\t")
-		if !ok {
-			continue
+		if _, path, ok := strings.Cut(line, "\t"); ok {
+			add(path)
 		}
-		path = strings.TrimSpace(path)
-		if path == "" || seen[path] {
-			continue
-		}
-		seen[path] = true
-		files = append(files, path)
 	}
 
 	// A conflict git can't express as a stage line is still worth naming,
-	// so fall back to the message it wrote.
-	for _, file := range conflictFilesFromMessage(err.Error()) {
-		if !seen[file] {
-			seen[file] = true
-			files = append(files, file)
-		}
+	// so fall back to the messages it wrote to stdout.
+	for _, file := range conflictFilesFromMessage(out) {
+		add(file)
 	}
 
+	if len(files) == 0 {
+		// Exit status 1 with no conflicted path is not a conflict we can
+		// name — an unknown ref reports this way. Treat it as an error.
+		return nil, mergeTreeError(ours, theirs, stderr, err)
+	}
 	return files, nil
 }
 
-// conflictFilesFromMessage pulls paths out of merge-tree's
-// "CONFLICT (<kind>): Merge conflict in <path>" lines.
+func mergeTreeError(ours, theirs, stderr string, err error) error {
+	detail := stderr
+	if detail == "" {
+		detail = err.Error()
+	}
+	return fmt.Errorf("git merge-tree could not compare %s and %s: %s (merge previews need Git %s or newer)",
+		ours, theirs, firstLine(detail), MinGitVersion)
+}
+
+func firstLine(s string) string {
+	line, _, _ := strings.Cut(s, "\n")
+	return strings.TrimSpace(line)
+}
+
 func conflictFilesFromMessage(msg string) []string {
 	var files []string
 	for _, line := range strings.Split(msg, "\n") {

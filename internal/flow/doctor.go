@@ -70,6 +70,7 @@ func (r Report) Problems() []Check {
 func CheckRepo(repoRoot string) Report {
 	var r Report
 
+	r.Checks = append(r.Checks, checkGitVersion())
 	r.Checks = append(r.Checks, checkRepository(repoRoot))
 	r.Checks = append(r.Checks, checkConfig(repoRoot))
 	r.Checks = append(r.Checks, checkHead())
@@ -82,6 +83,28 @@ func CheckRepo(repoRoot string) Report {
 	r.Checks = append(r.Checks, checkFlowHealth(repoRoot))
 
 	return r
+}
+
+// checkGitVersion reports the installed Git, and warns when it is too old
+// for `gix branch sync` to preview merges.
+func checkGitVersion() Check {
+	c := Check{Name: "git"}
+
+	v, err := git.InstalledVersion()
+	if err != nil {
+		c.Severity = Warn
+		c.Problem = "could not read the Git version: " + err.Error()
+		c.Fix = "make sure `git --version` works in this shell"
+		return c
+	}
+
+	c.Value = v.String()
+	if !v.AtLeast(git.MinGitVersion) {
+		c.Severity = Warn
+		c.Problem = fmt.Sprintf("Git %s is older than %s, which `gix branch sync` needs to preview merges", v, git.MinGitVersion)
+		c.Fix = "upgrade Git to " + git.MinGitVersion.String() + " or newer"
+	}
+	return c
 }
 
 func checkRepository(repoRoot string) Check {

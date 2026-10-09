@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-10-10
+
+### Fixed
+
+* `gix branch sync --dry-run` no longer reports `would merge` when it
+  could not actually check for conflicts. `git merge-tree` exits with
+  status 1 both for a real conflict and for a ref it cannot find, and the
+  other failures (unrelated histories, a Git too old for `--write-tree`)
+  were also read as "no conflicts". Only a conflict that names files now
+  counts as one; anything else is an error that says why.
+* `gix branch prune` no longer lists a branch you just started and have
+  not committed on. Such a branch points at the same commit as its merge
+  target, so it looked "already merged".
+* `gix branch prune` now requires every configured merge target to
+  contain a branch, as the documentation already said. Before, one was
+  enough, so a hotfix that had reached `main` but not yet `develop` was
+  listed, and `--apply` could delete it before the fix reached `develop`.
+* The `gix branch sync` error no longer names a branch it skipped on
+  purpose (a `rebase` or `squash` `downstream_strategy`) as one that
+  "could not take the merge".
+* Colors in the classic Windows console: gix turns on ANSI processing
+  for it, and prints plain text if the console refuses, instead of raw
+  escape codes.
+
+### Added
+
+* A `git` check in `gix doctor` that reports the installed Git version
+  and warns when it is older than 2.38, the first Git with
+  `merge-tree --write-tree`. `gix doctor` now runs eleven checks.
+* `gix branch sync` refuses to start on a Git older than 2.38 with a
+  message that says so, instead of failing once per branch. Git 2.38 or
+  newer is now listed as a requirement.
+* Git engine helpers `InstalledVersion` and `ParseGitVersion`.
+
+### Changed
+
+* A branch that was fast-forwarded into its merge target points at the
+  same commit afterwards, so `gix branch prune` keeps it, the same as a
+  branch you just started. `gix <kind> finish` deletes such a branch
+  itself, so this only matters for branches merged by hand. Listed under
+  known limits in `docs/commands.md`.
+
 ## [1.0.0] - 2026-10-10
 
 ### Added
@@ -177,6 +219,8 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[Unreleased]: https://github.com/m-mdy-m/gix/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/m-mdy-m/gix/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/m-mdy-m/gix/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.2.0
 [0.1.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.1.0

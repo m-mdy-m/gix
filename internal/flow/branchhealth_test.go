@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/m-mdy-m/gix/internal/config"
+	"github.com/m-mdy-m/gix/internal/git"
 	"github.com/m-mdy-m/gix/internal/testutil"
 )
 
@@ -510,4 +511,77 @@ func containsName(names []string, name string) bool {
 		}
 	}
 	return false
+}
+
+// A branch that was just started has no commits, so it points at the same
+// commit as develop and is "contained" by it. That is not a finished
+// branch, and prune must not offer to delete it.
+func TestPlanPruneKeepsFreshBranchWithNoCommits(t *testing.T) {
+	_, cfg := flowRepo(t)
+
+	full, err := Start(cfg, "feature", "just-started")
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if err := git.Checkout("develop"); err != nil {
+		t.Fatalf("Checkout: %v", err)
+	}
+
+	health, err := CheckBranches(cfg)
+	if err != nil {
+		t.Fatalf("CheckBranches: %v", err)
+	}
+
+	h := healthFor(t, health, full)
+	if !h.NoOwnCommits {
+		t.Errorf("%s = %+v, want NoOwnCommits for a branch with no commits", full, h)
+	}
+	if h.Finished() {
+		t.Errorf("%s reports Finished() with no commits of its own", full)
+	}
+
+	plan := PlanPrune(cfg, health, "develop")
+	for _, e := range plan.Entries {
+		if e.Name == full {
+			t.Errorf("%+v, want a just-started branch left alone", e)
+		}
+	}
+}
+
+// A hotfix goes to main and develop. Reaching only main is not merged:
+// deleting the branch then would leave develop without the fix and
+// without a name to find it by.
+func TestPlanPruneNeedsEveryMergeTarget(t *testing.T) {
+	repo, cfg := flowRepo(t)
+
+	full, err := Start(cfg, "hotfix", "fire")
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	repo.Write("fix.txt", "fix\n")
+	repo.Commit("fix: fire")
+
+	repo.Checkout("main")
+	repo.Run("merge", "--no-ff", "--no-edit", full)
+	repo.Checkout("develop")
+
+	health, err := CheckBranches(cfg)
+	if err != nil {
+		t.Fatalf("CheckBranches: %v", err)
+	}
+
+	h := healthFor(t, health, full)
+	if len(h.MergedInto) != 1 || h.MergedInto[0] != "main" {
+		t.Fatalf("MergedInto = %v, want only [main]", h.MergedInto)
+	}
+	if h.AlreadyMerged() {
+		t.Errorf("AlreadyMerged() = true with develop still missing the fix")
+	}
+
+	plan := PlanPrune(cfg, health, "develop")
+	for _, e := range plan.Entries {
+		if e.Name == full {
+			t.Errorf("%+v, want a half-merged hotfix left alone", e)
+		}
+	}
 }

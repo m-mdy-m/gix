@@ -40,7 +40,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/m-mdy-m/gix/main/scrip
 
 ### From source
 
-Requirements: Go 1.25+ and Git.
+Requirements: Go 1.25+ to build, and Git 2.38+ (older Git works except `gix branch sync`).
 
 ```bash
 git clone https://github.com/m-mdy-m/gix.git

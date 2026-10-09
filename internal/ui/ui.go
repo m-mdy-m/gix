@@ -39,7 +39,10 @@ func colorEnabled() bool {
 	if !ok {
 		return false
 	}
-	return isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd())
+	if !(isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd())) {
+		return false
+	}
+	return enableANSI(f)
 }
 
 func wrap(code, s string) string {

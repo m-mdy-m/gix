@@ -95,6 +95,12 @@ func Sync(cfg *config.Config, opts SyncOptions) (*SyncResult, error) {
 		}
 	}
 
+	// Merge previews rely on `git merge-tree --write-tree`. Say so up front
+	// rather than letting every branch report the same confusing error.
+	if err := git.RequireMergeTree(); err != nil {
+		return nil, err
+	}
+
 	source, err := resolveSource(cfg, opts.Source)
 	if err != nil {
 		return nil, err
@@ -303,7 +309,7 @@ func strategyFor(cfg *config.Config, branch string) config.Strategy {
 	if !ok {
 		return config.StrategyMerge
 	}
-	log.Verbosef("syncing %s into %s via %s (%s kind)", branch, kind, spec.Downstream(), kind)
+	log.Verbosef("syncing into %s (%s kind) via %s", branch, kind, spec.Downstream())
 	return spec.Downstream()
 }
 
@@ -314,9 +320,11 @@ type SyncError struct {
 }
 
 func (e *SyncError) Error() string {
+	// Only branches that conflicted or failed belong here. A branch that
+	// was skipped on purpose (a rebase or squash strategy) did not "fail".
 	var failed []string
 	for _, entry := range e.Result.Entries {
-		if !entry.OK() {
+		if entry.State == SyncConflict || entry.State == SyncFailed {
 			failed = append(failed, entry.Branch)
 		}
 	}
