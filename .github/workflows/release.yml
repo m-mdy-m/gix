@@ -46,6 +46,7 @@ jobs:
             goos: linux
             goarch: amd64
             ext: ''
+            smoke: true
           - os: ubuntu-latest
             target: linux-arm64
             goos: linux
@@ -61,10 +62,17 @@ jobs:
             goos: darwin
             goarch: arm64
             ext: ''
+            smoke: true
           - os: windows-latest
             target: windows-x64
             goos: windows
             goarch: amd64
+            ext: '.exe'
+            smoke: true
+          - os: windows-latest
+            target: windows-arm64
+            goos: windows
+            goarch: arm64
             ext: '.exe'
 
     steps:
@@ -80,11 +88,22 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          # Pure Go, so the binary has no libc dependency and runs anywhere.
+          CGO_ENABLED: '0'
         run: |
           OUT=gix-${{ matrix.target }}${{ matrix.ext }}
           go build -trimpath \
             -ldflags "-s -w -X 'github.com/m-mdy-m/gix/internal/commands.Version=${{ needs.version.outputs.version }}'" \
             -o "build/$OUT" ./cmd/gix
+        shell: bash
+
+      # Only on runners that can execute the binary they just built.
+      - name: Smoke test
+        if: matrix.smoke
+        run: |
+          OUT="build/gix-${{ matrix.target }}${{ matrix.ext }}"
+          "./$OUT" --version | tee version.txt
+          grep -F "${{ needs.version.outputs.version }}" version.txt
         shell: bash
 
       - name: Create checksum (Unix)
@@ -123,6 +142,7 @@ jobs:
         with:
           name: binary-${{ matrix.target }}
           path: |
+            build/gix-${{ matrix.target }}${{ matrix.ext }}
             build/gix-${{ needs.version.outputs.version }}-${{ matrix.target }}.*
             build/gix-${{ matrix.target }}*.sha256
           if-no-files-found: error

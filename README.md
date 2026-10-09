@@ -34,8 +34,7 @@ curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh
 ### Windows PowerShell
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1" -OutFile install.ps1
-.\install.ps1
+irm https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1 | iex
 ```
 
 ### From source

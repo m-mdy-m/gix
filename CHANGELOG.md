@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-10
+
+### Added
+
+* One-command install on every platform. Windows (PowerShell):
+  `irm https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1 | iex`
+  — no download-then-run step. Linux and macOS are unchanged:
+  `curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh | sh`.
+  Options are environment variables (`GIX_VERSION`, `GIX_PREFIX`) so they
+  work through the pipe.
+* Releases now publish the bare binary next to the archives:
+  `gix-linux-x64`, `gix-linux-arm64`, `gix-darwin-x64`, `gix-darwin-arm64`,
+  `gix-windows-x64.exe` and `gix-windows-arm64.exe`, each with a
+  `.sha256`. Download one file and run it; no unpacking.
+* A Windows ARM64 build (`gix-windows-arm64.exe`); `install.ps1` picks it
+  on ARM machines.
+* The release workflow runs `gix --version` on each binary it can execute
+  (linux-x64, darwin-arm64, windows-x64) and fails the release if the
+  version does not match the tag.
+
+### Changed
+
+* Both installers download the bare binary and verify its checksum, and
+  fall back to the archive for releases that predate the bare binaries.
+* `install.sh` finds the latest release through the `/releases/latest`
+  redirect instead of the GitHub API, so it no longer fails on the API's
+  rate limit, and works with `wget` when `curl` is missing.
+* `install.ps1` no longer needs to be saved first, enables TLS 1.2 for
+  Windows PowerShell 5.1, and adds `gix` to `PATH` for the current window
+  as well as for new ones.
+
 ## [1.0.1] - 2026-10-10
 
 ### Fixed
@@ -219,7 +250,8 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/m-mdy-m/gix/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/m-mdy-m/gix/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/m-mdy-m/gix/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/m-mdy-m/gix/releases/tag/v0.2.0

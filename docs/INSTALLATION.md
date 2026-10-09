@@ -4,45 +4,64 @@ Four ways. Pick one.
 
 ## 1. Quick install (recommended)
 
+One command, no admin rights.
+
 **Linux / macOS:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh | sh
 ```
 
-Installs to `/usr/local/bin`, or `~/.local/bin` if not writable.
-
-```bash
-VERSION=v1.2.3 sh install.sh    # specific version
-PREFIX=~/.local sh install.sh   # custom prefix
-```
+Installs to `/usr/local/bin`, or `~/.local/bin` if that is not writable.
 
 **Windows (PowerShell):**
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1" -OutFile install.ps1
-.\install.ps1
+irm https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1 | iex
 ```
 
-Installs to `%LOCALAPPDATA%\Programs\gix` and adds it to your user PATH.
+Installs to `%LOCALAPPDATA%\Programs\gix` and adds it to your user PATH,
+for the current window and for new ones.
+
+Both verify the SHA-256 checksum before installing.
+
+**Options** are environment variables, so they work through the pipe:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh | GIX_VERSION=v1.0.1 sh
+curl -fsSL https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.sh | GIX_PREFIX=$HOME/.local sh
+```
+
+```powershell
+$env:GIX_VERSION = "v1.0.1"; irm https://raw.githubusercontent.com/m-mdy-m/gix/main/scripts/install.ps1 | iex
+```
+
+Set the variable on `sh`, not on `curl`: `GIX_VERSION=v1 curl ... | sh`
+sets it for curl only.
 
 ## 2. Prebuilt binary
 
-Download from [Releases](https://github.com/m-mdy-m/gix/releases):
+Download one file from [Releases](https://github.com/m-mdy-m/gix/releases)
+and run it. Each is a single static binary:
 
 | Asset | Platform |
 |-------|----------|
-| `gix-<ver>-linux-x64.tar.gz` / `-arm64` | Linux |
-| `gix-<ver>-darwin-x64.tar.gz` / `-arm64` | macOS |
-| `gix-<ver>-windows-x64.zip` | Windows |
+| `gix-linux-x64` / `gix-linux-arm64` | Linux |
+| `gix-darwin-x64` / `gix-darwin-arm64` | macOS (Intel / Apple silicon) |
+| `gix-windows-x64.exe` / `gix-windows-arm64.exe` | Windows |
 
-Every asset ships with a `.sha256` checksum.
+Every binary has a `.sha256` next to it. Archives
+(`gix-<ver>-<target>.tar.gz` / `.zip`) are still published.
 
 ```bash
-tar -xzf gix-1.0.0-linux-x64.tar.gz
+curl -fsSLO https://github.com/m-mdy-m/gix/releases/latest/download/gix-linux-x64
+chmod +x gix-linux-x64
 sudo mv gix-linux-x64 /usr/local/bin/gix
 gix --version
 ```
+
+On Windows, download `gix-windows-x64.exe`, rename it to `gix.exe`, and
+put it in a folder on your PATH.
 
 ## 3. From source
 
