@@ -133,6 +133,15 @@ It refuses to run on a feature branch, a detached HEAD, a dirty working
 tree, during an unfinished merge, or when the tag already exists. Run it
 on `main`.
 
+## Updating gix
+
+| Command | What it does |
+|---------|--------------|
+| `gix update` (alias `gix upgrade`) | replace this gix with the latest release |
+
+Flags: `--check` (only report), `--to <tag>` (a specific release),
+`--force` (reinstall, or replace a development build).
+
 ## Diagnostics
 
 `gix doctor` inspects the repository and reports what it finds:

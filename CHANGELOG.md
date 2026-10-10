@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-10
+
+### Added
+
+* `gix update` (alias `gix upgrade`) — replaces the gix you are running
+  with the latest release. It finds the release through GitHub's
+  `/releases/latest` redirect, downloads the binary for your platform,
+  checks it against the published SHA-256, runs it once with
+  `--version`, and only then swaps it in, so a bad download never
+  replaces a working gix. If anything fails, your gix is left as it was.
+  On Windows the old binary is moved aside to `gix.exe.old`, since a
+  running `.exe` can be renamed but not overwritten.
+* `gix update --check` reports whether a newer release exists and installs
+  nothing. `--to v1.0.1` installs a specific release, older or newer.
+  `--force` reinstalls, or replaces a development build.
+* A gix built from source reports `dev` or a `git describe` string
+  (`1.1.1-3-gabc123`). `gix update` treats that as a development build
+  and leaves it alone unless `--force` is passed.
+* `update` and `upgrade` are now reserved command names, so a branch kind
+  in `.gix/config` cannot shadow them.
+
+### Fixed
+
+* `make install` now replaces any older `gix` that comes before
+  `$GOPATH/bin` on your PATH. Before, it installed to `$GOPATH/bin`
+  and the old copy kept running, so `gix --version` still showed the
+  previous version. If that copy cannot be written, it says so and prints
+  the command that would replace it. (Windows: the same check is done in
+  PowerShell.)
+* A gix built with `make` now prints `1.1.1` rather than `v1.1.1`, the
+  same form release binaries use.
+
 ## [1.1.1] - 2026-10-10
 
 ### Changed
@@ -266,7 +298,8 @@ on top of the real `git` binary.
 - Short practical docs under `docs/` (install, getting started,
   examples, commands, configuration, architecture, development)
 
-[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/m-mdy-m/gix/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/m-mdy-m/gix/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/m-mdy-m/gix/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/m-mdy-m/gix/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/m-mdy-m/gix/compare/v1.0.0...v1.0.1

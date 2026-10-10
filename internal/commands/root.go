@@ -22,6 +22,11 @@ var registrables = []cli.Registrable{
 	signingCommands{},
 	branchHealthCommands{},
 	versionCommands{},
+	cli.RegistrableFunc(registerUpdate),
+}
+
+func registerUpdate(root *cobra.Command, _ *cli.Context) {
+	root.AddCommand(newUpdateCmd())
 }
 
 // New builds the root `gix` command with every subcommand registered
@@ -85,7 +90,7 @@ func registerConfiguredKinds(root *cobra.Command, ctx *cli.Context) {
 	}
 	// A config key must never be able to shadow a command gix already
 	// offers: the built-in kind groups, and the base branch keys.
-	for _, name := range []string{"branch", "config", "doctor", "flow", "init", "list", "signing", "status", "version"} {
+	for _, name := range []string{"branch", "config", "doctor", "flow", "init", "list", "signing", "status", "update", "upgrade", "version"} {
 		registered[name] = true
 	}
 	for _, key := range cfg.BaseKeys() {

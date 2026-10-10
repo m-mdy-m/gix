@@ -13,6 +13,7 @@ from the code rather than from intentions.
 - [Checking health](#checking-health): `gix doctor`, `gix signing status`, `gix branch doctor`
 - [Keeping branches current and tidy](#keeping-branches-current-and-tidy): `gix branch sync`, `gix branch prune`
 - [Releases](#releases): `gix version show`, `gix version bump`
+- [Updating gix](#updating-gix): `gix update`
 - [Known limits](#known-limits)
 
 ## How every command behaves
@@ -423,6 +424,44 @@ git push origin v0.5.0
 Pushing a tag starts the release workflow. For a tag containing `-` it
 publishes the GitHub Release as a prerelease and does not move the Docker
 `latest` tag.
+
+## Updating gix
+
+### `gix update` (alias `gix upgrade`)
+
+Replaces the gix you are running with a published release. It needs no
+repository and never touches `.gix/config`.
+
+1. Finds the latest release through GitHub's `/releases/latest`
+   redirect (no API, no rate limit, no token).
+2. Compares it with the running version using SemVer precedence. If you
+   are already on it or newer: `gix X is up to date`, nothing happens.
+3. Downloads `gix-<os>-<arch>` (`.exe` on Windows) into the folder gix is
+   installed in.
+4. Checks it against the release's `.sha256`. A release with no checksum
+   is refused.
+5. Runs the download once with `--version` and expects the release's
+   version in the output, so a broken file never replaces a working one.
+6. Swaps it in. On Linux and macOS that is a rename over the old file. On
+   Windows a running `.exe` can be renamed but not overwritten, so the old
+   one is moved to `gix.exe.old` and removed on the next update.
+
+If any step fails, the gix you have is left as it was and the temporary
+file is removed.
+
+| Flag | Effect |
+|------|--------|
+| `--check` | only say whether a newer release exists |
+| `--to v1.0.1` | install that release instead, older or newer |
+| `--force` | reinstall, or replace a development build |
+
+A gix built from source (`make install`, `go install`) reports `dev` or a
+`git describe` string such as `1.1.1-3-gabc123`. That is a development
+build, not a release, so `gix update` says so and leaves it alone unless
+you pass `--force`.
+
+gix never checks for updates on its own. If it is installed somewhere you
+cannot write (for example `/usr/local/bin`), run `sudo gix update`.
 
 ## Known limits
 

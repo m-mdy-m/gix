@@ -22,7 +22,7 @@ make hooks          # enable git hooks (once per clone)
 | Target | Does |
 |--------|------|
 | `make build` | build → `build/gix` |
-| `make install` | `go install` to `$GOPATH/bin` |
+| `make install` | `go install` to `$GOPATH/bin`, and replace any older `gix` earlier on PATH |
 | `make test` | `go test ./...` |
 | `make cover` | `go test -cover ./...` |
 | `make fmt` / `make fmt-check` | gofmt write / check |

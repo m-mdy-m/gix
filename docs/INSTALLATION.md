@@ -98,6 +98,23 @@ gix --version
 gix --help
 ```
 
+## Update
+
+```bash
+gix update            # install the latest release
+gix update --check    # just say whether there is one
+gix update --to v1.0.1
+```
+
+`gix upgrade` is the same command. It verifies the SHA-256 and keeps your
+current gix if anything goes wrong. If gix lives in a folder you cannot
+write to, use `sudo gix update`. Re-running the install command from
+above works too.
+
+From source, `make install` also replaces any older `gix` that comes
+before `$GOPATH/bin` on your PATH, so `gix --version` shows the build you
+just made.
+
 ## Uninstall
 
 ```bash
